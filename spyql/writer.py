@@ -42,7 +42,7 @@ class Writer:
                 return PlotWriter(outputfile, **options)
             elif writer_name == "PYTHON":
                 # in this case the output should be reflected in as return
-                return CollectWriter(outputfile)
+                return MemoryWriter(outputfile)
         except TypeError as e:
             user_error(f"Could not create '{writer_name}' writer", e)
         user_error(
@@ -124,6 +124,18 @@ class CollectWriter(Writer):
     def writerow(self, row):
         self.all_rows.append([self.transformvalue(val) for val in row])  # accumulates
 
+    def dumprows(self, rows):
+        raise NotImplementedError
+
+    def flush(self):
+        if self.all_rows:
+            self.dumprows(self.all_rows)  # dumps
+
+
+class MemoryWriter(CollectWriter):
+    def dumprows(self, rows):
+        pass
+
 
 class PrettyWriter(CollectWriter):
     def __init__(self, outputfile, header=True, **options):
@@ -132,7 +144,7 @@ class PrettyWriter(CollectWriter):
         self.header_on = header
         self.options = options
 
-    def writerows(self, rows):
+    def dumprows(self, rows):
         # TODO handle default tablefmt
         self.outputfile.write(
             tabulate(
@@ -153,7 +165,7 @@ class PlotWriter(CollectWriter):
     def transformvalue(self, value):
         return nan if value is NULL or value is None else value
 
-    def writerows(self, rows):
+    def dumprows(self, rows):
         colors = [
             chart.cyan,
             chart.red,
