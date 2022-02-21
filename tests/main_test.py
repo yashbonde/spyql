@@ -1,3 +1,7 @@
+import logging
+logging.basicConfig(level=logging.INFO)
+
+
 from click.testing import CliRunner
 import spyql.cli
 import spyql.log
@@ -61,11 +65,13 @@ def spy2py(lines):
 
 
 def run_spyql(query="", options=[], data=None, runner=CliRunner(), exception=True):
-    return runner.invoke(spyql.cli.main, options + [query], input=data)
+    res = runner.invoke(spyql.cli.main, options + [query], input=data)
+    return res
 
 
 def eq_test_nrows(query, expectation, data=None, options=[]):
     runner = CliRunner()
+    spyql.log.user_info("Running query: {}".format(query))
 
     res = run_spyql(query + " TO json", options, data, runner)
     assert json_output(res.output) == expectation
@@ -827,3 +833,17 @@ def test_plot_output():
     assert res.exit_code == 0
     res = run_spyql("SELECT col1 FROM [1,2,NULL,3,None,4] TO plot")
     assert res.exit_code == 0
+
+
+# test_basic()
+test_orderby()
+# test_agg()
+# test_groupby()
+# test_distinct()
+# test_null()
+# test_processors()
+# test_metadata()
+# test_custom_syntax()
+# test_errors()
+# test_sql_output()
+# test_plot_output()

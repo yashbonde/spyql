@@ -5,11 +5,23 @@ from tabulate import tabulate  # https://pypi.org/project/tabulate/
 import asciichartpy as chart
 from math import nan
 
-from spyql.log import user_error
+from spyql.log import user_debug, user_error
 from spyql.nulltype import NULL
 
 
 class Writer:
+    _valid_writers = [None, "CSV", "JSON", "PRETTY", "SPY", "SQL", "PLOT", "PYTHON"]
+    _ext2filetype = {
+        "json": "JSON",
+        "jsonl": "JSON",
+        "csv": "CSV",
+        "txt": "TEXT",
+        "spy": "SPY",
+        "sql": "SQL",
+        "plot": "PLOT",
+        "py": "PYTHON",
+    }
+
     @staticmethod
     def make_writer(writer_name, outputfile, options):
         try:
@@ -18,16 +30,19 @@ class Writer:
             writer_name = writer_name.upper()
             if writer_name == "CSV":
                 return CSVWriter(outputfile, **options)
-            if writer_name == "JSON":
+            elif writer_name == "JSON":
                 return SimpleJSONWriter(outputfile, **options)
-            if writer_name == "PRETTY":
+            elif writer_name == "PRETTY":
                 return PrettyWriter(outputfile, **options)
-            if writer_name == "SPY":
+            elif writer_name == "SPY":
                 return SpyWriter(outputfile, **options)
-            if writer_name == "SQL":
+            elif writer_name == "SQL":
                 return SQLWriter(outputfile, **options)
-            if writer_name == "PLOT":
+            elif writer_name == "PLOT":
                 return PlotWriter(outputfile, **options)
+            elif writer_name == "PYTHON":
+                # in this case the output should be reflected in as return
+                return CollectWriter(outputfile)
         except TypeError as e:
             user_error(f"Could not create '{writer_name}' writer", e)
         user_error(
@@ -37,6 +52,7 @@ class Writer:
         )
 
     def __init__(self, outputfile):
+        user_debug(f"Loading writer {self.__class__.__name__}")
         self.outputfile = outputfile
 
     def writeheader(self, header):
@@ -107,13 +123,6 @@ class CollectWriter(Writer):
 
     def writerow(self, row):
         self.all_rows.append([self.transformvalue(val) for val in row])  # accumulates
-
-    def writerows(self, rows):
-        raise NotImplementedError
-
-    def flush(self):
-        if self.all_rows:
-            self.writerows(self.all_rows)  # dumps
 
 
 class PrettyWriter(CollectWriter):
