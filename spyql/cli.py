@@ -24,11 +24,7 @@ query_struct_keywords = [
     "to",
 ]
 
-file_ext2type = {
-    "json": "JSON",
-    "jsonl": "JSON",
-    "csv": "CSV"
-}
+file_ext2type = {"json": "JSON", "jsonl": "JSON", "csv": "CSV"}
 
 
 def get_agg_funcs():
@@ -334,7 +330,7 @@ def parse_options(ctx, param, options):
 # run
 ###############
 def run(query, output_file=sys.stdout, input_options={}, output_options={}):
-    
+
     prs, strings = parse(clean_query(query))
 
     spyql.log.user_debug_dict("Parsed query", prs)
@@ -345,25 +341,14 @@ def run(query, output_file=sys.stdout, input_options={}, output_options={}):
     #   if is a valid file then load it
     #   else assume it is a python object to be loaded by user
     _from = prs["from"]
-    if _from == None:
-      # SELECT 1
-      pass
-    elif isinstance(_from, str):
-        if _from.upper() in Processor._valid_names:
-            # as you are
-            pass
-        elif os.path.exists(_from):
-            # SELECT * FROM /tmp/spyql.jsonl
-            processor = Processor._ext2filetype.get(_from.split(".")[-1].lower(), None)
-            if processor == None:
-                raise SyntaxError(f"Invalid FROM statement: '{_from}'")
-
-            prs["from"] = processor
-            input_options = {"filepath": _from}
-        else:
+    if os.path.exists(_from):
+        # SELECT * FROM /tmp/spyql.jsonl
+        processor = Processor._ext2filetype.get(_from.split(".")[-1].lower(), None)
+        if processor == None:
             raise SyntaxError(f"Invalid FROM statement: '{_from}'")
-    else:
-        raise SyntaxError(f"Invalid FROM statement: '{_from}'")
+
+        prs["from"] = processor
+        input_options = {"filepath": _from}
 
     # TO logic:
     #   if nothing is whatever already is
@@ -372,11 +357,11 @@ def run(query, output_file=sys.stdout, input_options={}, output_options={}):
     _to = prs["to"]
 
     if _to == None:
-        output_file = output_file # whatever it already is
+        output_file = output_file  # whatever it already is
     elif isinstance(_to, str):
         if _to.upper() in Writer._valid_writers:
             # TO csv
-            output_file = output_file # whatever it already is
+            output_file = output_file  # whatever it already is
         else:
             # TO /tmp/spyql.jsonl
             writer = Writer._ext2filetype.get(_to.split(".")[-1].lower(), None)
@@ -387,8 +372,10 @@ def run(query, output_file=sys.stdout, input_options={}, output_options={}):
     else:
         raise SyntaxError(f"Invalid TO file: '{_to}'")
 
-    processor = Processor.make_processor(prs=prs, strings=strings, input_options=input_options)
-    out = processor.go(output_file = output_file, output_options = output_options)
+    processor = Processor.make_processor(
+        prs=prs, strings=strings, input_options=input_options
+    )
+    out = processor.go(output_file=output_file, output_options=output_options)
     return out
 
 

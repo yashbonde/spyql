@@ -39,6 +39,7 @@ def get_folder(x):
     """get the folder of this file path"""
     return os.path.split(os.path.abspath(x))[0]
 
+
 def join_paths(x, *args):
     """convienience function for os.path.join"""
     return os.path.join(x, *args)
