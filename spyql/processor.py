@@ -29,12 +29,12 @@ class ProcessedOutput:
         self.rows_in = rows_in
         self.rows_out = rows_out
 
-    def get(self, k, v = None):
+    def get(self, k, v=None):
         return getattr(self, k, v)
 
     def set(self, k, v):
         setattr(self, k, v)
-    
+
     def get_dict(self):
         return {k: getattr(self, k, None) for k in self.__slots__}
 
@@ -61,8 +61,7 @@ class ProcessedOutput:
         return str(self.get_dict())
 
 
-
-def init_vars(user_query_vars = {}):
+def init_vars(user_query_vars={}):
     """Initializes dict of variables for user queries"""
     vars = dict()
     # imports for user queries (TODO move to init.py when mature)
@@ -89,11 +88,12 @@ def init_vars(user_query_vars = {}):
         spyql.log.user_debug(f"Init file not found: {init_fname}")
     except Exception as e:
         spyql.log.user_warning(f"Could not load {init_fname}", e)
-    
 
     # update the accessible vars with user defined vars, if overlap, warn the user
     for x in set(vars.keys()) & set(user_query_vars.keys()):
-        spyql.log.user_warning(f"Overloading builtin name '{x}', somethings may not work!")
+        spyql.log.user_warning(
+            f"Overloading builtin name '{x}', somethings may not work!"
+        )
     vars.update(user_query_vars)
 
     return vars
@@ -110,7 +110,7 @@ class Processor:
     }
 
     @staticmethod
-    def make_processor(prs, strings, input_options = {}):
+    def make_processor(prs, strings, input_options={}):
         """
         Factory for making a file processor based on the parsed query
         """
@@ -353,7 +353,7 @@ class Processor:
             )
 
     # main
-    def go(self, output_file, output_options,  user_query_vars = {}) -> ProcessedOutput:
+    def go(self, output_file, output_options, user_query_vars={}) -> ProcessedOutput:
         output_handler = OutputHandler.make_handler(self.prs)
         writer = Writer.make_writer(self.prs["to"], output_file, output_options)
         output_handler.set_writer(writer)
@@ -471,33 +471,24 @@ class Processor:
 
 
 class PythonExprProcessor(Processor):
-    def __init__(self, prs, strings, source = None):
+    def __init__(self, prs, strings):
         super().__init__(prs, strings)
-        self.source = source
         self.translations["data"] = "_values"
 
     # input is a Python expression or a ref that is passed in the vars.
     def get_input_iterator(self):
-        if self.source != None:
-            # data = self.vars["user_query_vars"]
-            if self.source in self.vars:
-                spyql.log.user_debug(f"Trying to read as python object")
-                return self.vars[self.source]
-            else:
-                spyql.log.user_debug(f"Trying to read as python expression")
-                e = self.eval_clause("from", self.compile_clause("from"))
-                if e:
-                    if not isiterable(e):
-                        e = [e]
-                    if not isiterable(e[0]):
-                        e = [[el] for el in e]
-                return e
-        else:
-            return self.prs["select"]
+        spyql.log.user_debug(f"Trying to read as python expression")
+        e = self.eval_clause("from", self.compile_clause("from"))
+        if e:
+            if not isiterable(e):
+                e = [e]
+            if not isiterable(e[0]):
+                e = [[el] for el in e]
+        return e
 
 
 class TextProcessor(Processor):
-    def __init__(self, prs, strings, filepath = None):
+    def __init__(self, prs, strings, filepath=None):
         super().__init__(prs, strings)
         self.filepath = filepath
 
@@ -533,7 +524,7 @@ class SpyProcessor(Processor):
 
 
 class JSONProcessor(Processor):
-    def __init__(self, prs, strings, filepath = None, **options):
+    def __init__(self, prs, strings, filepath=None, **options):
         super().__init__(prs, strings)
         self.filepath = filepath
         jsonlib.loads('{"a": 1}', **options)  # test options
@@ -562,7 +553,14 @@ class JSONProcessor(Processor):
 # CSV
 class CSVProcessor(Processor):
     def __init__(
-        self, prs, strings, sample_size=10, header=None, infer_dtypes=True, filepath = None, **options
+        self,
+        prs,
+        strings,
+        sample_size=10,
+        header=None,
+        infer_dtypes=True,
+        filepath=None,
+        **options,
     ):
         super().__init__(prs, strings)
         self.filepath = filepath
@@ -643,8 +641,10 @@ class CSVProcessor(Processor):
             self._infer_dtypes(csv.reader(sample, **self.options))
             sample.seek(0)  # rewinds the sample again
 
-        for x in  chain(
-            csv.reader(sample, **self.options),  # goes through sample again (for reading input data)
+        for x in chain(
+            csv.reader(
+                sample, **self.options
+            ),  # goes through sample again (for reading input data)
             csv.reader(f, **self.options),
         ):
             # yield because when reading from file it will have to be closed
