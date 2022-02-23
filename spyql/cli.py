@@ -1,4 +1,4 @@
-from spyql.interactive import Query
+from spyql.query import Query
 import spyql.utils
 import spyql.log
 import click

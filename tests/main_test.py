@@ -65,7 +65,7 @@ def spy2py(lines):
     return [str(SpyProcessor.unpack_line(line)) for line in lines]
 
 
-def run_spyql(query="", options=[], data=None, runner=CliRunner(), exception=True):
+def run_cli(query="", options=[], data=None, runner=CliRunner(), exception=True):
     res = runner.invoke(spyql.cli.main, options + [query], input=data)
     return res
 
@@ -74,19 +74,19 @@ def eq_test_nrows(query, expectation, data=None, options=[]):
     runner = CliRunner()
     spyql.log.user_info("Running query: {}".format(query))
 
-    res = run_spyql(query + " TO json", options, data, runner)
+    res = run_cli(query + " TO json", options, data, runner)
     assert json_output(res.output) == expectation
     assert res.exit_code == 0
 
-    res = run_spyql(query + " TO csv", options, data, runner)
+    res = run_cli(query + " TO csv", options, data, runner)
     assert txt_output(res.output, True) == list_of_struct2csv(expectation)
     assert res.exit_code == 0
 
-    res = run_spyql(query + " TO spy", options, data, runner)
+    res = run_cli(query + " TO spy", options, data, runner)
     assert spy2py(txt_output(res.output, True)) == list_of_struct2py(expectation)
     assert res.exit_code == 0
 
-    res = run_spyql(query + " TO pretty", options, data, runner)
+    res = run_cli(query + " TO pretty", options, data, runner)
     assert txt_output(res.output, True) == list_of_struct2pretty(expectation)
     assert res.exit_code == 0
 
@@ -96,7 +96,7 @@ def eq_test_1row(query, expectation, **kwargs):
 
 
 def exception_test(query, anexception, **kwargs):
-    res = run_spyql(query, **kwargs)
+    res = run_cli(query, **kwargs)
     assert res.exit_code != 0
     assert isinstance(res.exception, anexception)
 
@@ -495,7 +495,7 @@ def test_distinct():
     )
 
     # Distinct jsons
-    res = run_spyql(
+    res = run_cli(
         "SELECT DISTINCT json FROM json EXPLODE json->a TO json",
         data=(
             '{"a": [1, 2, 2], "b": "three"}\n{"a": [], "b": "none"}\n{"a": [4], "b":'
@@ -697,7 +697,7 @@ def test_metadata():
             "cols": [{"a": 1}],
             "_values": [{"a": 1}],
             "_names": ["json"],
-            "row": {"json": {"a": 1}},
+            "row": {"a": 1},
         },
         data='{"a": 1}\n',
     )
@@ -812,7 +812,7 @@ def test_sql_output():
         TO sql
         """
 
-    res = run_spyql(query, ["-Otable=test1", "-Ochunk_size=2"])
+    res = run_cli(query, ["-Otable=test1", "-Ochunk_size=2"])
     assert res.exit_code == 0
     for insert_stat in res.output.splitlines():
         # run inserts from spyql in sqlite
@@ -830,21 +830,7 @@ def test_sql_output():
 
 def test_plot_output():
     # just checking that it does not break...
-    res = run_spyql("SELECT col1 as abc, col1*2 FROM range(20) TO plot")
+    res = run_cli("SELECT col1 as abc, col1*2 FROM range(20) TO plot")
     assert res.exit_code == 0
-    res = run_spyql("SELECT col1 FROM [1,2,NULL,3,None,4] TO plot")
+    res = run_cli("SELECT col1 FROM [1,2,NULL,3,None,4] TO plot")
     assert res.exit_code == 0
-
-
-# test_basic()
-test_orderby()
-# test_agg()
-# test_groupby()
-# test_distinct()
-# test_null()
-# test_processors()
-# test_metadata()
-# test_custom_syntax()
-# test_errors()
-# test_sql_output()
-# test_plot_output()
