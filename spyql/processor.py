@@ -194,8 +194,14 @@ class Processor:
         # list of [col1,col2,...]
         cols_expr = "[" + ",".join(self.col_values_exprs) + "]"
         self.translations["cols"] = cols_expr
+
         # dict of {col1: value1, ...}
-        self.translations["row"] = f"NullSafeDict(zip(_names, {cols_expr}))"
+        # TODO detect if row is used, and if it is instantiate once
+        # TODO extend collapsing to Pandas, NumPy arrays, etc
+        self.translations["row"] = (
+            "(_values[0] if len(_names)==1 and isinstance(_values[0], dict)"
+            f" else NullSafeDict(zip(_names, {cols_expr})))"
+        )
 
     def make_out_cols_names(self, out_cols_names):
         """
