@@ -97,7 +97,7 @@ class SimpleJSONWriter(Writer):
 
     def makerow(self, row):
         single_dict = (
-            self.header in [["col1"], ["json"]]
+            self.header in [["col1"], ["json"], ["row"]]
             and len(row) == 1
             and isinstance(row[0], dict)
         )

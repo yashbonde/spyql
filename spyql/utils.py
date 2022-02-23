@@ -32,7 +32,12 @@ def isiterable(x):
     from spyql.nulltype import Null
     from collections.abc import Iterable
 
-    return isinstance(x, Iterable) and x is not Null and not isinstance(x, str)
+    return (
+        isinstance(x, Iterable)
+        and x is not Null
+        and not isinstance(x, str)
+        and not isinstance(x, dict)
+    )
 
 
 def get_folder(x):
