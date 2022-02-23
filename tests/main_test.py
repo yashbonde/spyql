@@ -70,9 +70,33 @@ def run_cli(query="", options=[], data=None, runner=CliRunner(), exception=True)
     return res
 
 
-def eq_test_nrows(query, expectation, data=None, options=[]):
+def make_cli_options(kw_options):
+    options = []
+    for option, value in kw_options.items():
+        if option.endswith("put_options"):
+            options.extend(
+                [
+                    f"-{option[0].upper()}{opt}" + ("" if val is None else f"={val}")
+                    for opt, val in value.items()
+                ]
+            )
+        elif option == "unbuffered":
+            if value:
+                options.extend(["-u"])
+        elif option == "warning_flag":
+            options.extend([f"-W{value}"])
+        elif option == "v":
+            options.extend([f"-v{value}"])
+        else:
+            options.extend([f"--{option}"])
+    return options
+
+
+def eq_test_nrows(query, expectation, data=None, **kw_options):
     runner = CliRunner()
     spyql.log.user_info("Running query: {}".format(query))
+
+    options = make_cli_options(kw_options)
 
     res = run_cli(query + " TO json", options, data, runner)
     assert json_output(res.output) == expectation
@@ -95,8 +119,8 @@ def eq_test_1row(query, expectation, **kwargs):
     eq_test_nrows(query, [expectation], **kwargs)
 
 
-def exception_test(query, anexception, **kwargs):
-    res = run_cli(query, **kwargs)
+def exception_test(query, anexception, **kw_options):
+    res = run_cli(query, make_cli_options(kw_options))
     assert res.exit_code != 0
     assert isinstance(res.exception, anexception)
 
@@ -557,25 +581,25 @@ def test_processors():
         "SELECT a as a FROM csv",
         [{"a": NULL}, {"a": 4}, {"a": NULL}],
         data="a,b,c\n,2,3\n4,5,6\n,8,9",
-        options=["-Idelimiter=,"],
+        input_options={"delimiter": ","},
     )
     eq_test_nrows(
         "SELECT int(a) as a FROM csv",
         [{"a": NULL}, {"a": 4}, {"a": NULL}],
         data="a,b,c\n,2,3\n4,5,6\noops,8,9",
-        options=["-Idelimiter=,", "-Iinfer_dtypes=False"],
+        input_options={"delimiter": ",", "infer_dtypes": False},
     )
     eq_test_nrows(
         "SELECT a as a FROM csv",
         [{"a": ""}, {"a": "4"}, {"a": ""}],
         data="a,b,c\n,2,3\n4,5,6\n,8,9",
-        options=["-Idelimiter=,", "-Iinfer_dtypes=False"],
+        input_options={"delimiter": ",", "infer_dtypes": False},
     )
     eq_test_nrows(
         "SELECT col1 as a FROM csv",
         [{"a": NULL}, {"a": 4}, {"a": NULL}],
         data=",2,3\n4,5,6\n,8,9",
-        options=["-Idelimiter=,", "-Iheader=False"],
+        input_options={"delimiter": ",", "header": False},
     )
     eq_test_nrows(
         "SELECT col1 as a, col2 as b, col3 as c FROM csv",  # type inference test
@@ -585,7 +609,7 @@ def test_processors():
             {"a": NULL, "b": NULL, "c": ""},
         ],
         data=",2,3\n4,5.0,ola\n,,",
-        options=["-Idelimiter=,", "-Iheader=False"],
+        input_options={"delimiter": ",", "header": False},
     )
     eq_test_nrows("SELECT * FROM csv", [], data="")
 
@@ -689,7 +713,7 @@ def test_metadata():
             },
         ],
         data=",2,3\n4,5,6\n,8,9",
-        options=["-Idelimiter=,", "-Iheader=False"],
+        input_options={"delimiter": ",", "header": False},
     )
     eq_test_1row(
         "SELECT cols, _values, _names, row FROM json",
@@ -767,16 +791,24 @@ def test_errors():
     exception_test("SELECT 1 TO _this_writer_does_not_exist_", SyntaxError)
     exception_test("SELECT 1 FROM [1,2,,]]", SyntaxError)
     exception_test("IMPORT _this_module_does_not_exist_ SELECT 1", ModuleNotFoundError)
-    exception_test("SELECT 1 TO csv", TypeError, options=["-Ounexisting_option=1"])
-    exception_test("SELECT 1 TO plot", TypeError, options=["-Ounexisting_option=1"])
-    exception_test("SELECT 1 FROM csv", TypeError, options=["-Iunexisting_option=1"])
-    exception_test("SELECT 1 FROM spy", TypeError, options=["-Iunexisting_option=1"])
-    exception_test("SELECT 1 TO csv", TypeError, options=["-Odelimiter=bad"])
-    exception_test("SELECT 1 FROM csv", TypeError, options=["-Idelimiter=bad"])
-    exception_test("SELECT 1 TO csv", SystemExit, options=["-Ola"])
-    exception_test("SELECT int('abcde')", ValueError, options=["-Werror"])
-    exception_test("SELECT float('')", ValueError, options=["-Werror"])
-    exception_test("SELECT float('')", ValueError, options=["-Werror"])
+    exception_test(
+        "SELECT 1 TO csv", TypeError, output_options={"nonexisting_option": 1}
+    )
+    exception_test(
+        "SELECT 1 TO plot", TypeError, output_options={"nonexisting_option": 1}
+    )
+    exception_test(
+        "SELECT 1 FROM csv", TypeError, input_options={"nonexisting_option": 1}
+    )
+    exception_test(
+        "SELECT 1 FROM spy", TypeError, input_options={"nonexisting_option": 1}
+    )
+    exception_test("SELECT 1 TO csv", TypeError, output_options={"delimiter": "bad"})
+    exception_test("SELECT 1 FROM csv", TypeError, input_options={"delimiter": "bad"})
+    exception_test("SELECT 1 TO csv", SystemExit, output_options={"la": None})
+    exception_test("SELECT int('abcde')", ValueError, warning_flag="error")
+    exception_test("SELECT float('')", ValueError, warning_flag="error")
+    exception_test("SELECT float('')", ValueError, warning_flag="error")
     exception_test("SELECT DISTINCT count_agg(1)", SyntaxError)
     exception_test("SELECT count_agg(1) GROUP BY 1", SyntaxError)
     exception_test("SELECT 1 FROM range(3) WHERE max_agg(col1) > 0", SyntaxError)
