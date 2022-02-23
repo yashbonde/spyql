@@ -1,4 +1,3 @@
-from fileinput import close
 import os
 import sys
 import io
@@ -32,7 +31,7 @@ class Query:
                 [ ASC | DESC ] [ NULLS { FIRST | LAST } ] [, ...] ]
             [ LIMIT row_count ]
             [ OFFSET num_rows_to_skip ]
-            [ TO csv | json | spy | sql | pretty | plot ]
+            [ TO csv | json | spy | sql | pretty | plot | memory ]
 
         Usage
         -----
@@ -84,7 +83,7 @@ class Query:
         #     if is a filepath -> write to file
         _to = self.parsed["to"]
         if not _to:
-            self.parsed["to"] = "PYTHON"  # force return to python
+            self.parsed["to"] = "MEMORY"  # force return to python
         elif _to.upper() in Writer._valid_writers:
             self.parsed["to"] = _to
         elif isinstance(_to, str):

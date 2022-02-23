@@ -16,6 +16,7 @@ import io
 import sqlite3
 import math
 from functools import reduce
+import sys
 
 
 # --------  AUX FUNCTIONS  --------
@@ -63,6 +64,14 @@ def list_of_struct2py(vals):
 
 def spy2py(lines):
     return [str(SpyProcessor.unpack_line(line)) for line in lines]
+
+
+def run_query(query, data, **kw_options):
+    bk = sys.stdin
+    sys.stdin = io.StringIO(data)
+    res = spyql.query.Query(query, **kw_options)()
+    sys.stdin = bk
+    return res
 
 
 def run_cli(query="", options=[], data=None, runner=CliRunner(), exception=True):
@@ -113,6 +122,9 @@ def eq_test_nrows(query, expectation, data=None, **kw_options):
     res = run_cli(query + " TO pretty", options, data, runner)
     assert txt_output(res.output, True) == list_of_struct2pretty(expectation)
     assert res.exit_code == 0
+
+    res = run_query(query + " TO memory", data, **kw_options)
+    assert res == expectation
 
 
 def eq_test_1row(query, expectation, **kwargs):

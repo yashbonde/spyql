@@ -8,12 +8,11 @@ from tempfile import gettempdir
 from spyql.query import Query
 from spyql import log
 from spyql.utils import join_paths
-from spyql.nulltype import NULL, NullSafeDict
 
 
 def eq_test_nrows(query, expectation, **kwargs):
     log.user_debug(f"----")
-    q = Q(query)
+    q = Query(query)
     log.user_debug(f"{q}")
     res = q(**kwargs)
     log.user_debug(f"{len(expectation)} vs {len(res)} => {res} ")
@@ -26,7 +25,7 @@ def eq_test_1row(query, expectation, **kwargs):
 
 
 def exception_test(query, anexception, **kwargs):
-    q = Q(query)
+    q = Query(query)
     res = q(**kwargs)
     assert res.exit_code != 0
     assert isinstance(res.exception, anexception)
@@ -94,7 +93,10 @@ def test_json_read():
         f" {json_fpath} WHERE json->age > 30"
     )
     out = query()
-    assert out == [["C", 40], ["D", 50]]
+    assert out == [
+        {"first_name": "C", "user_age": 40},
+        {"first_name": "D", "user_age": 50},
+    ]
 
 
 def test_csv_read():
@@ -102,7 +104,10 @@ def test_csv_read():
         f"SELECT name as first_name, age as user_age FROM {csv_fpath} WHERE age > 30"
     )
     out = query()
-    assert out == [["C", 40], ["D", 50]]
+    assert out == [
+        {"first_name": "C", "user_age": 40},
+        {"first_name": "D", "user_age": 50},
+    ]
 
 
 def test_csv_write():
@@ -144,19 +149,14 @@ def test_csv_read_json_write():
 
 def test_complex_interactive():
     query = Query(
-        'IMPORT hashlib as hl SELECT hl.md5(col1.encode("utf-8")).hexdigest() FROM data'
+        'IMPORT hashlib as hl SELECT hl.md5(col1.encode("utf-8")).hexdigest() as h FROM'
+        " data"
     )
     out = query(data=["a", "b", "c"])
     assert out == [
-        [
-            "0cc175b9c0f1b6a831c399e269772661",
-        ],
-        [
-            "92eb5ffee6ae2fec3ad71c777531578f",
-        ],
-        [
-            "4a8a08f09d37b73795649038408b5f33",
-        ],
+        {"h": "0cc175b9c0f1b6a831c399e269772661"},
+        {"h": "92eb5ffee6ae2fec3ad71c777531578f"},
+        {"h": "4a8a08f09d37b73795649038408b5f33"},
     ]
 
 
@@ -179,9 +179,9 @@ def test_readme():
         ]
     )
     assert out == [
-        [1028, "tomatoes", 1.5],
-        [1028, "bananas", 2.0],
-        [1029, "peaches", 3.12],
+        {"id": 1028, "name": "tomatoes", "price": 1.5},
+        {"id": 1028, "name": "bananas", "price": 2.0},
+        {"id": 1029, "name": "peaches", "price": 3.12},
     ]
 
     query = Query("SELECT 10 * cos(col1 * ((pi * 4) / 90)) FROM range(80)")
