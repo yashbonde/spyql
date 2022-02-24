@@ -6,11 +6,11 @@ import asciichartpy as chart
 from math import nan
 
 from spyql.log import user_debug, user_error
-from spyql.nulltype import NULL
+from spyql.nulltype import NULL, NullSafeDict
 
 
 class Writer:
-    _valid_writers = [None, "CSV", "JSON", "PRETTY", "SPY", "SQL", "PLOT", "PYTHON"]
+    _valid_writers = [None, "CSV", "JSON", "PRETTY", "SPY", "SQL", "PLOT", "MEMORY"]
     _ext2filetype = {
         "json": "JSON",
         "jsonl": "JSON",
@@ -18,8 +18,6 @@ class Writer:
         "txt": "TEXT",
         "spy": "SPY",
         "sql": "SQL",
-        "plot": "PLOT",
-        "py": "PYTHON",
     }
 
     @staticmethod
@@ -40,9 +38,9 @@ class Writer:
                 return SQLWriter(outputfile, **options)
             elif writer_name == "PLOT":
                 return PlotWriter(outputfile, **options)
-            elif writer_name == "PYTHON":
+            elif writer_name == "MEMORY":
                 # in this case the output should be reflected in as return
-                return CollectWriter(outputfile)
+                return MemoryWriter(outputfile)
         except TypeError as e:
             user_error(f"Could not create '{writer_name}' writer", e)
         user_error(
@@ -97,7 +95,7 @@ class SimpleJSONWriter(Writer):
 
     def makerow(self, row):
         single_dict = (
-            self.header in [["col1"], ["json"]]
+            self.header in [["col1"], ["json"], ["row"]]
             and len(row) == 1
             and isinstance(row[0], dict)
         )
@@ -121,8 +119,31 @@ class CollectWriter(Writer):
     def transformvalue(self, value):
         return None if value is NULL else value
 
+    def transformrow(self, row):
+        return [self.transformvalue(val) for val in row]
+
     def writerow(self, row):
-        self.all_rows.append([self.transformvalue(val) for val in row])  # accumulates
+        self.all_rows.append(self.transformrow(row))  # accumulates
+
+    def dumprows(self, rows):
+        raise NotImplementedError
+
+    def flush(self):
+        if self.all_rows:
+            self.dumprows(self.all_rows)  # dumps
+
+
+class MemoryWriter(CollectWriter):
+    def transformrow(self, row):
+        # TODO call make row method on processor
+        return (
+            row[0]
+            if len(row) == 1 and isinstance(row[0], dict) and self.header[0] == "col1"
+            else NullSafeDict(zip(self.header, row))
+        )
+
+    def dumprows(self, rows):
+        pass
 
 
 class PrettyWriter(CollectWriter):
@@ -132,7 +153,7 @@ class PrettyWriter(CollectWriter):
         self.header_on = header
         self.options = options
 
-    def writerows(self, rows):
+    def dumprows(self, rows):
         # TODO handle default tablefmt
         self.outputfile.write(
             tabulate(
@@ -153,7 +174,7 @@ class PlotWriter(CollectWriter):
     def transformvalue(self, value):
         return nan if value is NULL or value is None else value
 
-    def writerows(self, rows):
+    def dumprows(self, rows):
         colors = [
             chart.cyan,
             chart.red,
